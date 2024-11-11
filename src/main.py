@@ -1,7 +1,6 @@
 import os
 import psycopg2
 import subprocess
-import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 from dotenv import load_dotenv
