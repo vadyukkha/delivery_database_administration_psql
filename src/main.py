@@ -1,5 +1,7 @@
 import os
 import psycopg2
+import subprocess
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 from dotenv import load_dotenv
@@ -7,7 +9,7 @@ from logger_decorator import dbconnect_logger, logging
 
 load_dotenv()
 
-DB_INIT_SCRIPT = os.getenv('DB_INIT_SCRIPT', 'demo_small.sql')
+DB_INIT_SCRIPT = os.getenv('DB_INIT_SCRIPT', 'database/demo_small.sql')
 DB_NAME = os.getenv('DB_NAME', 'airport')
 DB_HOST = os.getenv('DB_HOST', 'localhost')
 DB_PORT = os.getenv('DB_PORT', '5432')
@@ -38,7 +40,7 @@ class DispatcherBD:
         login = self.login_entry.get()
         password = self.password_entry.get()
 
-        if login == "" or password == "":
+        if login == "" and password == "":
             messagebox.showwarning("Input Error", "Please enter both login and password.")
             return
         
@@ -56,8 +58,8 @@ class DispatcherBD:
 
         self.connection = psycopg2.connect(
             dbname=DB_NAME,
-            user=login,
-            password=password,
+            user="postgres",
+            password="",
             host=DB_HOST,
             port=DB_PORT
         )
@@ -85,20 +87,22 @@ class DispatcherBD:
         cursor.execute(f"CREATE DATABASE {DB_NAME}")
         logging.info(f"Database '{DB_NAME}' created successfully.")
 
-        # fix not exist role
-        with psycopg2.connect(
-            dbname=DB_NAME,
-            user=login,
-            password=password,
-            host=DB_HOST,
-            port=DB_PORT
-        ) as conn:
-            conn.autocommit = True
-            with open(DB_INIT_SCRIPT, "r") as f:
-                sql_script = f.read()
-                cursor = conn.cursor()
-                cursor.execute(sql_script)
-                logging.info("Database initialized successfully.")
+        command = [
+            "psql",
+            "-d", DB_NAME,
+            "-U", "postgres",
+            "-h", DB_HOST,
+            "-p", DB_PORT,
+            "-f", DB_INIT_SCRIPT
+        ]
+
+        env = os.environ.copy()
+        env["PGPASSWORD"] = ""
+
+        subprocess.run(command, env=env, check=True)
+        logging.info("Database initialized successfully with provided SQL script.")
+        return True
+
 
     def show_main_window(self):
         main_window = tk.Tk()
