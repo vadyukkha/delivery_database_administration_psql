@@ -20,13 +20,13 @@ logging.basicConfig(
 def dbconnect_logger(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logging.info(f"Running {func.__name__} with args: {args}, kwargs: {kwargs}")
+        logging.info(f"Running '{func.__name__}' with args: {args}, kwargs: {kwargs}")
         try:
             result = func(*args, **kwargs)
-            logging.info(f"Finished {func.__name__} with result: {result}")
+            logging.info(f"Finished '{func.__name__}' with result: {result}")
             return result
         except psycopg2.Error as e:
-            logging.error(f"Error in {func.__name__}: {e}")
+            logging.error(f"Error in '{func.__name__}': {e}")
             messagebox.showerror("Database Error", f"An error occurred: {e}")
             return None
 
