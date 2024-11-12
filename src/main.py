@@ -107,12 +107,14 @@ class DispatcherBD:
 
         subprocess.run(command, env=env, check=True)
         logging.info("Database initialized successfully with provided SQL script.")
+
+        connect_admin.close()
         return True
 
     def show_main_window(self):
         main_window = tk.Tk()
         main_window.title("Main Application Window")
-        main_window.geometry("400x400")
+        main_window.geometry("1280x960")
 
         ttk.Label(main_window, text="Connected to Database!").pack(pady=20)
 
