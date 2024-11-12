@@ -9,11 +9,9 @@ from dotenv import load_dotenv
 load_dotenv()
 log_file = os.getenv("LOG_PATH", "logging_data/db_connection.log")
 
-if os.path.exists(log_file):
-    os.remove(log_file)
-
 logging.basicConfig(
     filename=log_file,
+    filemode="w",
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
