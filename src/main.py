@@ -3,26 +3,26 @@ import subprocess
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-import psycopg2
 from dotenv import load_dotenv
 
+from database_functions import DatabaseManager
 from logger_decorator import dbconnect_logger, logging
 
 load_dotenv()
 
 DB_INIT_SCRIPT = os.getenv("DB_INIT_SCRIPT", "database/demo_small.sql")
-DB_NAME = os.getenv("DB_NAME", "airport")
+DB_NAME = os.getenv("DB_NAME", "demo")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 
 
-class DispatcherBD:
+class GUIDispatcherBD:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title("Login to Database")
         self.root.geometry("400x400")
 
-        self.connection = None
+        self.db_manager = None
 
         self.create_login_window()
 
@@ -61,31 +61,25 @@ class DispatcherBD:
     @dbconnect_logger
     def connect_to_db(self, login, password):
         if not self.database_exists():
-            self.initialize_database(login, password)
+            self.initialize_database()
 
-        self.connection = psycopg2.connect(
-            dbname=DB_NAME, user="postgres", password="", host=DB_HOST, port=DB_PORT
-        )
+        self.db_manager = DatabaseManager(DB_NAME, login, password, DB_HOST, DB_PORT)
         return True
 
     @dbconnect_logger
     def database_exists(self):
-        with psycopg2.connect(
-            dbname="postgres", user="postgres", host=DB_HOST, port=DB_PORT
-        ) as conn:
-            conn.autocommit = True
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{DB_NAME}'")
-            return cursor.fetchone() is not None
+        admin_connection = DatabaseManager("postgres", "postgres", "", DB_HOST, DB_PORT)
+        admin_connection.cursor.execute(
+            f"SELECT 1 FROM pg_database WHERE datname = '{DB_NAME}'"
+        )
+        checker_exist = admin_connection.cursor.fetchone() is not None
+        admin_connection.close()
+        return checker_exist
 
     @dbconnect_logger
-    def initialize_database(self, login, password):
-        connect_admin = psycopg2.connect(
-            dbname="postgres", user="postgres", host=DB_HOST, port=DB_PORT
-        )
-        connect_admin.set_session(autocommit=True)
-        cursor = connect_admin.cursor()
-        cursor.execute(f"CREATE DATABASE {DB_NAME}")
+    def initialize_database(self):
+        connect_admin = DatabaseManager("postgres", "postgres", "", DB_HOST, DB_PORT)
+        connect_admin.cursor.execute(f"CREATE DATABASE {DB_NAME}")
         logging.info(f"Database '{DB_NAME}' created successfully.")
 
         command = [
@@ -127,4 +121,4 @@ class DispatcherBD:
 
 
 if __name__ == "__main__":
-    DispatcherBD().run()
+    GUIDispatcherBD().run()
