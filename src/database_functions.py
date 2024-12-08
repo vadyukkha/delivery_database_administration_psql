@@ -20,17 +20,26 @@ class DatabaseManager:
     # Удаление базы данных
     @logs
     def delete_database(self):
-        pass
+        self.cursor.execute("CALL delete_database();")
+        return True
 
     # Вывод содержимого таблиц
     @logs
     def show_tables_content(self):
-        pass
+        self.cursor.execute("SELECT * FROM show_tables_content();")
+        results = self.cursor.fetchall()
+        return results
 
     # Очистка одной таблицы
     @logs
-    def clear_table(self):
-        pass
+    def clear_table(self, table_name):
+        try:
+            self.cursor.execute(
+                f"CALL clear_sertain_table('{str(table_name).lower()}');"
+            )
+        except Exception:
+            return False
+        return True
 
     # Очистка всех таблиц
     @logs
