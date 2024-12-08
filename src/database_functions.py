@@ -1,5 +1,7 @@
 import psycopg2
 
+from logger_decorator import logs
+
 
 class DatabaseManager:
     def __init__(
@@ -16,38 +18,47 @@ class DatabaseManager:
         self.cursor = self.connection.cursor()
 
     # Удаление базы данных
+    @logs
     def delete_database(self):
         pass
 
     # Вывод содержимого таблиц
+    @logs
     def show_tables_content(self):
         pass
 
     # Очистка одной таблицы
+    @logs
     def clear_table(self):
         pass
 
     # Очистка всех таблиц
+    @logs
     def clear_all_tables(self):
         pass
 
     # Добавление новых данных
+    @logs
     def add_data(self):
         pass
 
     # Поиск по заранее выбранному (вами) текстовому не ключевому полю
+    @logs
     def search_by_text_field(self):
         pass
 
     # Обновление кортежа
+    @logs
     def update_row(self):
         pass
 
     # Удаление по заранее выбранному текстовому не ключевому полю
+    @logs
     def delete_by_text_field(self):
         pass
 
     # Удаление конкретной записи, выбранной пользователем
+    @logs
     def delete_specific_record(self):
         pass
 
