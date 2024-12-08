@@ -207,7 +207,148 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA delivery_schema TO chill_user;
 
 -- TO-DO Процедуры для работы с данными
 
+-- Удаление базы данных
+CREATE OR REPLACE PROCEDURE drop_delivery_tables()
+LANGUAGE plpgsql AS $$
+BEGIN
+    BEGIN
+        DROP TABLE IF EXISTS delivery_schema.OrderItems;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Ошибка удаления таблицы OrderItems: %', SQLERRM;
+    END;
+    BEGIN
+        DROP TABLE IF EXISTS delivery_schema.Orders;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Ошибка удаления таблицы Orders: %', SQLERRM;
+    END;
+    BEGIN
+        DROP TABLE IF EXISTS delivery_schema.Products;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Ошибка удаления таблицы Products: %', SQLERRM;
+    END;
+    BEGIN
+        DROP TABLE IF EXISTS delivery_schema.Users;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Ошибка удаления таблицы Users: %', SQLERRM;
+    END;
+    RAISE NOTICE 'Таблицы базы данных delivery удалены.';
+END;
+$$;
 
+-- Вывод данных из таблиц
+CREATE OR REPLACE PROCEDURE show_tables()
+LANGUAGE plpgsql AS $$
+DECLARE
+    buff_row RECORD;
+BEGIN
+    FOR buff_row IN SELECT * FROM users LOOP
+        RAISE NOTICE 'TABLE USERS:';
+        RAISE NOTICE '% / % / % / % / %', buff_row.user_id, buff_row.name, buff_row.email, buff_row.phone, buff_row.address;
+    END LOOP;
+    FOR buff_row IN SELECT * FROM orders LOOP
+        RAISE NOTICE 'TABLE ORDERS';
+        RAISE NOTICE '% / % / % / % / %', buff_row.order_id, buff_row.user_id, buff_row.order_date, buff_row.total_cost, buff_row.status;
+    END LOOP;
+    FOR buff_row IN SELECT * FROM orderitems LOOP
+        RAISE NOTICE 'TABLE ORDERITEMS';
+        RAISE NOTICE '% / % / % / %', buff_row.order_item_id, buff_row.order_id, buff_row.product_id, buff_row.quantity;
+    END LOOP;
+    FOR buff_row IN SELECT * FROM products LOOP
+        RAISE NOTICE 'TABLE PRODUCTS';
+        RAISE NOTICE '% / % / % / % / %', buff_row.product_id, buff_row.name, buff_row.description, buff_row.price, buff_row.stock;
+    END LOOP;
+END;
+$$;
+
+-- Очистка одной из таблиц(название задается пользователем)
+CREATE OR REPLACE PROCEDURE clear_sertain_table(t_name TEXT)
+LANGUAGE plpgsql AS $$
+DECLARE
+  request TEXT;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE TABLE_NAME = t_name) THEN
+    RAISE EXCEPTION 'Таблица % не существует.', t_name;
+  END IF;
+
+  request := format('DELETE FROM %I;', t_name);
+  EXECUTE request;
+  RAISE NOTICE 'Таблица % очищена.', t_name;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при очистке таблицы %: %', t_name, SQLERRM;
+END;
+$$;
+--Добавление новых данных в таблицу(с перегрузкой)
+CREATE OR REPLACE PROCEDURE add_info_user(p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15),p_address VARCHAR(100))
+LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO delivery_schema.Users(name, email, phone, address) VALUES (p_name, p_email, p_phone, p_address);
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE add_info_product(p_name VARCHAR(100),p_description TEXT,p_price INT,p_stock INT)
+LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO delivery_schema.Products(name, description, price, stock) VALUES (p_name, p_description, p_price, p_stock);
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE add_info_order(p_user_id INT, p_status VARCHAR(20), p_total_cost INT DEFAULT 0)
+LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO delivery_schema.Orders(user_id, total_cost, status) VALUES (p_user_id, p_total_cost, p_status);
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE add_info_orderitem(p_order_id INT, p_product_id INT, p_quantity INT)
+LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO delivery_schema.Orderitems(uorder_id, product_id, quantity) VALUES (p_order_id, p_product_id, p_quantity);
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
+END;
+$$;
+
+--Поиск по полю заданному полю description в таблице Products
+CREATE OR REPLACE PROCEDURE search_products_by_desc(p_desc TEXT)
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_desc TEXT;
+  rec RECORD;
+BEGIN
+  v_desc:= '%' || p_desc || '%';
+
+  FOR rec IN SELECT product_id, name, description, price, stock
+  FROM delivery_schema.Products
+  WHERE description ILIKE v_desc
+  LOOP
+        RAISE NOTICE '% / % / % / % / %', rec.product_id, rec.name, rec.description, rec.price, rec.stock;
+  END LOOP;
+
+EXCEPTION WHEN OTHERS THEN
+  RAISE EXCEPTION 'Ошибка при поиске товаров: %', SQLERRM;
+END;
+$$;
+
+--Очистка всех таблиц
+CREATE OR REPLACE PROCEDURE clear_all_tables()
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM delivery_schema.users;
+  DELETE FROM delivery_schema.orders;
+  DELETE FROM delivery_schema.orderitems;
+  DELETE FROM delivery_schema.products;
+  RAISE NOTICE 'Таблицы в схеме my_schema очищены.';
+EXCEPTION WHEN OTHERS THEN
+  RAISE EXCEPTION 'Ошибка при очистке таблиц в схеме my_schema: %', SQLERRM;
+END;
+$$;
 -- Заполнение таблиц
 
 -- Добавляем пользователя в таблицу Users
