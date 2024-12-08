@@ -7,3 +7,5 @@ __pycache__/
 logging_data/
 
 demo/
+
+.DS_Store
