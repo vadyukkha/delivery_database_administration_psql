@@ -15,7 +15,7 @@ DROP ROLE chill_user;
 CREATE USER chill_user WITH PASSWORD 'im_just_chill_guy';
 
 -- Создаем базу данных
-CREATE DATABASE delivery OWNER chill_user;
+CREATE DATABASE delivery;
 
 -- Подключаемся к базе данных
 \c delivery
