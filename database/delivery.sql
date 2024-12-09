@@ -69,7 +69,7 @@ CREATE TABLE delivery_schema.Orders (
 CREATE TABLE delivery_schema.OrderItems (
     order_item_id SERIAL PRIMARY KEY,
     order_id INT REFERENCES Orders(order_id) ON DELETE CASCADE,
-    product_id INT REFERENCES Products(product_id),
+    product_id INT REFERENCES Products(product_id) ON DELETE CASCADE,
     quantity INT NOT NULL
 );
 
@@ -254,65 +254,121 @@ EXCEPTION
 END;
 $$;
 
---Добавление новых данных в таблицу(с перегрузкой)
-CREATE OR REPLACE PROCEDURE add_info_user(p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15),p_address VARCHAR(100))
-LANGUAGE plpgsql AS $$
+--Добавление новых данных в таблицу
+--Обязательно указывать типы данных(idk why)
+--EXAMPLE: SELECT add_info('Levchik'::varchar, 'lew.cherezow@gmail.com'::varchar, '228'::varchar, 'sormovo'::varchar)
+CREATE OR REPLACE FUNCTION add_info(p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15), p_address VARCHAR(100))
+RETURNS VOID AS $$
 BEGIN
     INSERT INTO delivery_schema.Users(name, email, phone, address) VALUES (p_name, p_email, p_phone, p_address);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE PROCEDURE add_info_product(p_name VARCHAR(100),p_description TEXT,p_price INT,p_stock INT)
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION add_info(p_name VARCHAR(100),p_description TEXT,p_price INT,p_stock INT)
+RETURNS VOID AS $$
 BEGIN
     INSERT INTO delivery_schema.Products(name, description, price, stock) VALUES (p_name, p_description, p_price, p_stock);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE PROCEDURE add_info_order(p_user_id INT, p_status VARCHAR(20), p_total_cost INT DEFAULT 0)
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION add_info(p_user_id INT, p_status VARCHAR(20), p_total_cost INT DEFAULT 0)
+RETURNS VOID AS $$
 BEGIN
     INSERT INTO delivery_schema.Orders(user_id, total_cost, status) VALUES (p_user_id, p_total_cost, p_status);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE PROCEDURE add_info_orderitem(p_order_id INT, p_product_id INT, p_quantity INT)
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION add_info(p_order_id INT, p_product_id INT, p_quantity INT)
+RETURNS VOID AS $$
 BEGIN
     INSERT INTO delivery_schema.Orderitems(uorder_id, product_id, quantity) VALUES (p_order_id, p_product_id, p_quantity);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
---Поиск по полю заданному полю description в таблице Products
-CREATE OR REPLACE PROCEDURE search_products_by_desc(p_desc TEXT)
-LANGUAGE plpgsql AS $$
-DECLARE
-  v_desc TEXT;
-  rec RECORD;
+-- Поиск по заданному полю description в таблице Products
+CREATE OR REPLACE FUNCTION search_products_by_desc(p_desc TEXT)
+RETURNS TABLE(product_id INT, name VARCHAR(100), description TEXT, price INT, stock INT) AS $$
 BEGIN
-  v_desc:= '%' || p_desc || '%';
-
-  FOR rec IN SELECT product_id, name, description, price, stock
-  FROM delivery_schema.Products
-  WHERE description ILIKE v_desc
-  LOOP
-        RAISE NOTICE '% \ % \ % \ % \ %', rec.product_id, rec.name, rec.description, rec.price, rec.stock;
-  END LOOP;
-
-EXCEPTION WHEN OTHERS THEN
-  RAISE EXCEPTION 'Ошибка при поиске товаров: %', SQLERRM;
+    RETURN QUERY
+    SELECT 
+        p.product_id,
+        p.name,
+        p.description,
+        p.price,
+        p.stock
+    FROM 
+        delivery_schema.Products p
+    WHERE 
+        p.description ILIKE '%' || p_desc || '%';
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
---Очистка всех таблиц
+--Обновление кортежа
+CREATE OR REPLACE FUNCTION update_cortege(p_user_id INT, p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15),p_address VARCHAR(100))
+RETURNS VOID AS $$
+BEGIN
+    UPDATE delivery_schema.Users
+    SET name = p_name, email = p_email, phone = p_phone, address = p_address
+    WHERE user_id = p_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Пользователь с ID % не найден', p_user_id;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при изменении пользователя: %', SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_cortege(p_order_id INT, p_user_id INT, p_status VARCHAR(20))
+RETURNS VOID AS $$
+BEGIN
+    UPDATE delivery_schema.Orders
+    SET status = p_status
+    WHERE order_id = p_order_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Заказ с ID % не найден', p_order_id;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при изменении заказа: %', SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_cortege(p_order_item_id INT, p_order_id INT, p_product_id INT, p_quantity INT)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE delivery_schema.OrderItems
+    SET product_id = p_product_id, quantity = p_quantity
+    WHERE order_item_id = p_order_item_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Продукт в заказе с ID % не найден', p_user_item_id;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при добавлении продукта в заказе: %', SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_cortege(p_product_id INT, p_name TEXT, p_description TEXT, p_stock INT)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE delivery_schema.Products
+    SET name = p_name, description = p_description, stock = p_stock
+    WHERE product_id = p_product_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Продукт с ID % не найден', p_product_id;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Ошибка при добавлении продукта: %', SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Очистка всех таблиц
 CREATE OR REPLACE PROCEDURE clear_all_tables()
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -325,6 +381,52 @@ EXCEPTION WHEN OTHERS THEN
   RAISE EXCEPTION 'Ошибка при очистке таблиц в схеме my_schema: %', SQLERRM;
 END;
 $$;
+
+-- Удаление по заданному полю description в таблице Products
+CREATE OR REPLACE PROCEDURE delete_products_by_desc(p_desc TEXT)
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_desc TEXT;
+  rec RECORD;
+BEGIN
+  v_desc:= '%' || p_desc || '%';
+
+  FOR rec IN SELECT product_id, name, description, price, stock
+  FROM delivery_schema.Products
+  WHERE description ILIKE v_desc
+  LOOP
+    DELETE FROM delivery_schema.Products;
+  END LOOP;
+
+EXCEPTION WHEN OTHERS THEN
+  RAISE EXCEPTION 'Ошибка при поиске товаров: %', SQLERRM;
+END;
+$$;
+
+-- Удаление записи по имени таблицы и айди записи
+CREATE OR REPLACE PROCEDURE delete_specific_record(t_name TEXT, id INT)
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF t_name = 'users' THEN
+        DELETE FROM delivery_schema.Users WHERE user_id = id;
+    ELSIF t_name = 'products' THEN
+        DELETE FROM delivery_schema.Products WHERE product_id = id;
+    ELSIF t_name = 'orderitems' THEN
+        DELETE FROM delivery_schema.OrderItems WHERE order_item_id = id;
+    ELSIF t_name = 'orders' THEN
+        DELETE FROM delivery_schema.Orders WHERE order_id = id;
+    ELSE
+        RAISE EXCEPTION 'Table "%s" is not allowed for deletion.', t_name;
+    END IF;
+
+    RAISE NOTICE 'Record with id % from table % successfully deleted.', id, t_name;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error while deleting record: %', SQLERRM;
+END;
+$$;
+
+
 -- Заполнение таблиц
 
 -- Добавляем пользователя в таблицу Users
