@@ -287,7 +287,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION add_info(p_order_id INT, p_product_id INT, p_quantity INT)
 RETURNS VOID AS $$
 BEGIN
-    INSERT INTO delivery_schema.Orderitems(uorder_id, product_id, quantity) VALUES (p_order_id, p_product_id, p_quantity);
+    INSERT INTO delivery_schema.Orderitems(order_id, product_id, quantity) VALUES (p_order_id, p_product_id, p_quantity);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
