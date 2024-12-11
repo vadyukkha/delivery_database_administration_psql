@@ -16,6 +16,7 @@ DB_INIT_SCRIPT = os.getenv("DB_INIT_SCRIPT", "database/demo_small.sql")
 DB_NAME = os.getenv("DB_NAME", "demo")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
 
 class StreamlitDatabaseApp:
@@ -68,7 +69,7 @@ class StreamlitDatabaseApp:
         """Check if the database exists."""
         try:
             admin_engine = create_engine(
-                f"postgresql://postgres@{DB_HOST}:{DB_PORT}/postgres",
+                f"postgresql://postgres:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
                 isolation_level="AUTOCOMMIT",
             )
             with admin_engine.connect() as conn:
@@ -86,7 +87,7 @@ class StreamlitDatabaseApp:
         """Initialize the database using SQL script."""
         try:
             admin_engine = create_engine(
-                f"postgresql://postgres@{DB_HOST}:{DB_PORT}/postgres",
+                f"postgresql://postgres:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
                 isolation_level="AUTOCOMMIT",
             )
             with admin_engine.connect() as conn:
@@ -107,7 +108,7 @@ class StreamlitDatabaseApp:
                 DB_INIT_SCRIPT,
             ]
             env = os.environ.copy()
-            env["PGPASSWORD"] = ""
+            env["PGPASSWORD"] = ADMIN_PASSWORD
 
             subprocess.run(command, env=env, check=True)
             logging.info("Database initialized successfully with provided SQL script.")

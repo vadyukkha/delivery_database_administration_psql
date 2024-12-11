@@ -96,7 +96,7 @@ class DatabaseManager:
             email = data["email"]
             phone = data["phone"]
             address = data["address"]
-            query = f"SELECT add_info('{name}', '{email}', '{phone}', '{address}');"
+            query = f"SELECT add_info('{name}'::varchar, '{email}'::varchar, '{phone}'::varchar, '{address}'::varchar);"
         elif table_name.lower() == "orderitems":
             order_id = data["order_id"]
             product_id = data["product_id"]
