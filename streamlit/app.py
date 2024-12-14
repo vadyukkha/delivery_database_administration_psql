@@ -12,8 +12,8 @@ import streamlit as st
 
 load_dotenv()
 
-DB_INIT_SCRIPT = os.getenv("DB_INIT_SCRIPT", "database/demo_small.sql")
-DB_NAME = os.getenv("DB_NAME", "demo")
+DB_INIT_SCRIPT = os.getenv("DB_INIT_SCRIPT")
+DB_NAME = os.getenv("DB_NAME")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
