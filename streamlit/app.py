@@ -145,6 +145,8 @@ class StreamlitDatabaseApp:
                 )
                 st.session_state.username = None
                 self.db_manager.close()
+                self.db_manager = None
+                st.session_state.db_manager = None
                 st.rerun()
 
         st.sidebar.title("Database Operations")
