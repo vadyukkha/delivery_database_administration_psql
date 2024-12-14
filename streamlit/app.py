@@ -38,6 +38,9 @@ class StreamlitDatabaseApp:
             return True
         else:
             st.error("Failed to connect to the database with the provided credentials.")
+            st.session_state.logged_in = False
+            st.session_state.username = None
+            st.session_state.db_manager = None
             return False
 
     @logs
@@ -47,7 +50,10 @@ class StreamlitDatabaseApp:
             self.initialize_database()
 
         try:
-            if "db_manager" not in st.session_state:
+            if (
+                "db_manager" not in st.session_state
+                or st.session_state.db_manager is None
+            ):
                 self.db_manager = DatabaseManager(
                     DB_NAME, login, password, DB_HOST, DB_PORT
                 )
