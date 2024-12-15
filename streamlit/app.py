@@ -30,6 +30,7 @@ class StreamlitDatabaseApp:
             st.warning("Please enter both login and password.")
             return False
 
+        # Пробуем подключиться к базе данных
         if self.connect_to_db(login, password):
             st.success(f"Successfully logged in {DB_NAME} as {login}!")
             st.session_state.logged_in = True
@@ -46,10 +47,13 @@ class StreamlitDatabaseApp:
     @logs
     def connect_to_db(self, login, password):
         """Connect to the database."""
+        # Проверяем существует ли база данных
         if not self.database_exists():
+            # Если нет, то создаем
             self.initialize_database()
 
         try:
+            # Подключаемся к базе данных
             if (
                 "db_manager" not in st.session_state
                 or st.session_state.db_manager is None
@@ -64,7 +68,7 @@ class StreamlitDatabaseApp:
             logging.debug(
                 f"Database type: {type(self.db_manager)} Database: {self.db_manager}"
             )
-            return self.db_manager.test_connection()
+            return self.db_manager.test_connection()  # Проверяем подключение
         except Exception as e:
             logging.error(f"Error connecting to the database: {e}")
             st.error(f"Failed to connect to the database: {e}")
@@ -74,6 +78,7 @@ class StreamlitDatabaseApp:
     def database_exists(self):
         """Check if the database exists."""
         try:
+            # Подключаемся к базе данных postgres для проверки существования базы данных
             admin_engine = create_engine(
                 f"postgresql://postgres:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
                 isolation_level="AUTOCOMMIT",
@@ -83,7 +88,9 @@ class StreamlitDatabaseApp:
                     text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
                     {"db_name": DB_NAME},
                 )
-                return result.scalar() is not None
+                return (
+                    result.scalar() is not None
+                )  # Если база данных существует, то возвращаем True
         except SQLAlchemyError as e:
             logging.error(f"Error checking database existence: {e}")
             return False
@@ -92,6 +99,7 @@ class StreamlitDatabaseApp:
     def initialize_database(self):
         """Initialize the database using SQL script."""
         try:
+            # Подключаемся к базе данных postgres для создания базы данных
             admin_engine = create_engine(
                 f"postgresql://postgres:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
                 isolation_level="AUTOCOMMIT",
@@ -100,6 +108,7 @@ class StreamlitDatabaseApp:
                 conn.execute(text(f"CREATE DATABASE {DB_NAME}"))
             logging.info(f"Database '{DB_NAME}' created successfully.")
 
+            # Подключаемся к базе данных и инициализируем ее с помощью SQL скрипта
             command = [
                 "psql",
                 "-d",
@@ -113,8 +122,10 @@ class StreamlitDatabaseApp:
                 "-f",
                 DB_INIT_SCRIPT,
             ]
-            env = os.environ.copy()
-            env["PGPASSWORD"] = ADMIN_PASSWORD
+            env = os.environ.copy()  # Копируем переменные окружения
+            env["PGPASSWORD"] = (
+                ADMIN_PASSWORD  # Устанавливаем пароль для подключения к базе данных
+            )
 
             subprocess.run(command, env=env, check=True)
             logging.info("Database initialized successfully with provided SQL script.")
@@ -127,27 +138,27 @@ class StreamlitDatabaseApp:
     def show_main_interface(self):
         """Main interface for database operations."""
 
+        # Проверяем, инициализирован ли менеджер базы данных
         if "db_manager" in st.session_state:
             self.db_manager = st.session_state.db_manager
         else:
             st.error("Database manager is not initialized.")
             return
 
-        if st.session_state.logged_in:
-            st.sidebar.title(
-                f"Username - {st.session_state.username}\nDatabase - {DB_NAME}"
-            )
-            if st.sidebar.button("Logout"):
-                st.session_state.logged_in = False
-                st.success("Logged out successfully.")
-                logging.info(
-                    f"User {st.session_state.username} logged out successfully."
-                )
-                st.session_state.username = None
-                self.db_manager.close()
-                self.db_manager = None
-                st.session_state.db_manager = None
-                st.rerun()
+        st.sidebar.title(
+            f"Username - {st.session_state.username}\nDatabase - {DB_NAME}"
+        )
+
+        # Кнопка для выхода
+        if st.sidebar.button("Logout"):
+            st.session_state.logged_in = False
+            st.success("Logged out successfully.")
+            logging.info(f"User {st.session_state.username} logged out successfully.")
+            st.session_state.username = None
+            self.db_manager.close()
+            self.db_manager = None
+            st.session_state.db_manager = None
+            st.rerun()
 
         st.sidebar.title("Database Operations")
         operation = st.sidebar.radio(
@@ -295,12 +306,15 @@ class StreamlitDatabaseApp:
         """Run the Streamlit app."""
         st.title("Database Manager Application")
 
+        # Проверяем, есть ли переменная состояния для хранения информации о логине
         if "logged_in" not in st.session_state:
             st.session_state.logged_in = False
 
+        # Проверяем, залогинен ли пользователь
         if not st.session_state.logged_in:
             self.show_login_interface()
 
+        # Если пользователь залогинен, то показываем интерфейс для работы с базой данных
         if st.session_state.logged_in:
             self.show_main_interface()
 

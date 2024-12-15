@@ -9,7 +9,7 @@ class DatabaseManager:
         self, db_name, db_user, db_password, db_host="localhost", db_port="5432"
     ):
         db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-        self.engine = create_engine(db_url)
+        self.engine = create_engine(db_url, isolation_level="AUTOCOMMIT")
         self.metadata = MetaData()
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
