@@ -226,11 +226,22 @@ class StreamlitDatabaseApp:
                 "Enter updates as JSON. For example: {'user_id': 1, 'name': 'New Name', 'email': 'new_email@example.com', 'phone': '1234567890', 'address': 'Moscow'}"
             )
             if st.button("Update Row"):
-                updates_dict = eval(updates)
-                self.db_manager.update_row(table_name, row_id, updates_dict)
-                st.success(
-                    f"Row '{row_id}' in table '{table_name}' updated successfully!"
-                )
+                try:
+                    updates_dict = eval(updates)
+                    result = self.db_manager.update_row(
+                        table_name, row_id, updates_dict
+                    )
+                    if result:
+                        st.success(
+                            f"Row '{row_id}' in table '{table_name}' updated successfully!"
+                        )
+                    else:
+                        st.error(
+                            f"Failed to update row '{row_id}' in table '{table_name}'."
+                        )
+                except Exception as e:
+                    st.error(f"Failed to update row: {e}")
+                    logging.error(f"Failed to update row: {e}")
 
         elif operation == "Delete by Text Field":
             query = st.text_input("Enter text field value to delete")
