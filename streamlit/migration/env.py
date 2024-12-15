@@ -1,20 +1,14 @@
-import sys
-import os
-
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
-
-streamlit_dir = os.path.join(os.path.dirname(__file__), '..', 'streamlit')
-sys.path.append(streamlit_dir)
-from  db_procedures import DatabaseManager
 
 from alembic import context
+from db_procedures import DatabaseManager
+from sqlalchemy import engine_from_config, pool
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+db_url = "postgresql://chill_user:im_just_chill_guy@localhost:5432/delivery"
+config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -25,12 +19,12 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = target_metadata = DatabaseManager(
+target_metadata = DatabaseManager(
     db_name="delivery",
     db_user="chill_user",
     db_password="im_just_chill_guy",
     db_host="localhost",
-    db_port="5432",    
+    db_port="5432",
 ).metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -77,9 +71,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

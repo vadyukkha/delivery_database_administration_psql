@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 16.6 (Ubuntu 16.6-0ubuntu0.24.04.1)
--- Dumped by pg_dump version 16.6 (Ubuntu 16.6-0ubuntu0.24.04.1)
+-- Dumped from database version 13.18
+-- Dumped by pg_dump version 14.15 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -144,7 +144,7 @@ $$;
 -- Name: clear_sertain_table(text); Type: PROCEDURE; Schema: delivery_schema; Owner: -
 --
 
-CREATE PROCEDURE delivery_schema.clear_sertain_table(IN t_name text)
+CREATE PROCEDURE delivery_schema.clear_sertain_table(t_name text)
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -214,7 +214,7 @@ $$;
 -- Name: delete_products_by_desc(text); Type: PROCEDURE; Schema: delivery_schema; Owner: -
 --
 
-CREATE PROCEDURE delivery_schema.delete_products_by_desc(IN p_desc text)
+CREATE PROCEDURE delivery_schema.delete_products_by_desc(p_desc text)
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -240,7 +240,7 @@ $$;
 -- Name: delete_specific_record(text, integer); Type: PROCEDURE; Schema: delivery_schema; Owner: -
 --
 
-CREATE PROCEDURE delivery_schema.delete_specific_record(IN t_name text, IN id integer)
+CREATE PROCEDURE delivery_schema.delete_specific_record(t_name text, id integer)
     LANGUAGE plpgsql
     AS $$
 BEGIN
