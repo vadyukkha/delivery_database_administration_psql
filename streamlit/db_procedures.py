@@ -85,7 +85,7 @@ class DatabaseManager:
 
         query = ""
         logging.debug(f"Adding data to table '{table_name.lower()}'")
-        if table_name.lower() == "product":
+        if table_name.lower() == "products":
             name = data["name"]
             description = data["description"]
             price = data["price"]
