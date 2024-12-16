@@ -7,6 +7,8 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 SET row_security = off;
 
+DROP SCHEMA IF EXISTS delivery_schema CASCADE;
+
 DROP DATABASE delivery;
 
 DROP ROLE chill_user;
@@ -52,8 +54,8 @@ CREATE TABLE delivery_schema.Products (
     product_id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    price INT NOT NULL,
-    stock INT NOT NULL
+    price INT NOT NULL CONSTRAINT positive_price CHECK (price > 0),
+    stock INT NOT NULL CONSTRAINT positive_stock CHECK (stock > 0)
 );
 
 -- Таблица Orders
@@ -70,7 +72,7 @@ CREATE TABLE delivery_schema.OrderItems (
     order_item_id SERIAL PRIMARY KEY,
     order_id INT REFERENCES Orders(order_id) ON DELETE CASCADE,
     product_id INT REFERENCES Products(product_id) ON DELETE CASCADE,
-    quantity INT NOT NULL
+    quantity INT NOT NULL CONSTRAINT positive_quantity CHECK (quantity > 0)
 );
 
 -- Индекс по полю name в таблице Products
