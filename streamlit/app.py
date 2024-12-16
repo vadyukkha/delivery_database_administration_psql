@@ -16,7 +16,8 @@ DB_INIT_SCRIPT = os.getenv("DB_INIT_SCRIPT")
 DB_NAME = os.getenv("DB_NAME")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 
 
 class StreamlitDatabaseApp:
@@ -80,7 +81,7 @@ class StreamlitDatabaseApp:
         try:
             # Подключаемся к базе данных postgres для проверки существования базы данных
             admin_engine = create_engine(
-                f"postgresql://postgres:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
+                f"postgresql://{ADMIN_USERNAME}:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/{ADMIN_USERNAME}",
                 isolation_level="AUTOCOMMIT",
             )
             with admin_engine.connect() as conn:
@@ -101,7 +102,7 @@ class StreamlitDatabaseApp:
         try:
             # Подключаемся к базе данных postgres для создания базы данных
             admin_engine = create_engine(
-                f"postgresql://postgres:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
+                f"postgresql://{ADMIN_USERNAME}:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/{ADMIN_USERNAME}",
                 isolation_level="AUTOCOMMIT",
             )
             with admin_engine.connect() as conn:
@@ -112,9 +113,9 @@ class StreamlitDatabaseApp:
             command = [
                 "psql",
                 "-d",
-                DB_NAME,
+                ADMIN_USERNAME,
                 "-U",
-                "postgres",
+                ADMIN_USERNAME,
                 "-h",
                 DB_HOST,
                 "-p",

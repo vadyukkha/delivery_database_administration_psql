@@ -9,11 +9,11 @@ SET row_security = off;
 
 DROP SCHEMA IF EXISTS delivery_schema CASCADE;
 
-DROP DATABASE delivery;
+DROP DATABASE IF EXISTS delivery;
 
-DROP ROLE chill_user;
+DROP ROLE IF EXISTS chill_user;
 
--- Создаем пользователя с ограниченными правами для использования (до этого работает от postgres)
+-- Создаем пользователя с ограниченными правами для использования (до этого работает от chill_owner)
 CREATE USER chill_user WITH PASSWORD 'im_just_chill_guy';
 
 -- Создаем базу данных
@@ -32,7 +32,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 -- Создаем схему
-CREATE SCHEMA delivery_schema AUTHORIZATION chill_user;
+CREATE SCHEMA delivery_schema AUTHORIZATION chill_owner;
 
 -- Добавляем в search_path
 SET search_path TO delivery_schema;
@@ -205,7 +205,7 @@ EXECUTE FUNCTION delivery_schema.delete_order_item();
 -- Даем пользователю chill_user доступ только к чтению и записи данных в схеме
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA delivery_schema TO chill_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA delivery_schema TO chill_user;
-
+GRANT USAGE ON SCHEMA delivery_schema TO chill_user;
 
 -- TO-DO Процедуры для работы с данными
 
