@@ -21,7 +21,8 @@
     DB_INIT_SCRIPT="database/delivery.sql"
     DB_NAME="delivery"
     LOG_PATH="logging_data/delivery_connection.log"
-    ADMIN_PASSWORD=ВВЕДИТЕ_ЗДЕСЬ_СВОЙ_ПАРОЛЬ_ОТ_ПОЛЬЗОВАТЕЛЯ_ПОСТГРЕС
+    ADMIN_PASSWORD="chill_owner"
+    ADMIN_USERNAME="chill_owner"
     ```
 
 4. Чтобы запустить проект пропишите:
