@@ -397,7 +397,8 @@ BEGIN
   FROM delivery_schema.Products
   WHERE description ILIKE v_desc
   LOOP
-    DELETE FROM delivery_schema.Products;
+    DELETE FROM delivery_schema.Products
+    WHERE product_id = rec.product_id;
   END LOOP;
 
 EXCEPTION WHEN OTHERS THEN
