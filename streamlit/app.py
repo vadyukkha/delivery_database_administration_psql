@@ -1,5 +1,4 @@
 import os
-import subprocess
 
 import pandas as pd
 from db_procedures import DatabaseManager
@@ -51,7 +50,8 @@ class StreamlitDatabaseApp:
         # Проверяем существует ли база данных
         if not self.database_exists():
             # Если нет, то создаем
-            self.initialize_database()
+            if not self.initialize_database():
+                return False
 
         try:
             # Подключаемся к базе данных
@@ -79,19 +79,15 @@ class StreamlitDatabaseApp:
     def database_exists(self):
         """Check if the database exists."""
         try:
-            # Подключаемся к базе данных postgres для проверки существования базы данных
+            # Подключаемся к базе данных chill_owner для проверки существования базы данных
             admin_engine = create_engine(
-                f"postgresql://{ADMIN_USERNAME}:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/{ADMIN_USERNAME}",
+                f"postgresql://{ADMIN_USERNAME}:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
                 isolation_level="AUTOCOMMIT",
             )
             with admin_engine.connect() as conn:
-                result = conn.execute(
-                    text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
-                    {"db_name": DB_NAME},
-                )
-                return (
-                    result.scalar() is not None
-                )  # Если база данных существует, то возвращаем True
+                query = text("SELECT delivery_init_schema.check_database_existence();")
+                result = conn.execute(query)
+                return result.fetchall()[0][0]
         except SQLAlchemyError as e:
             logging.error(f"Error checking database existence: {e}")
             return False
@@ -100,36 +96,16 @@ class StreamlitDatabaseApp:
     def initialize_database(self):
         """Initialize the database using SQL script."""
         try:
-            # Подключаемся к базе данных postgres для создания базы данных
+            # Подключаемся к базе данных chill_owner для создания базы данных
             admin_engine = create_engine(
-                f"postgresql://{ADMIN_USERNAME}:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/{ADMIN_USERNAME}",
+                f"postgresql://{ADMIN_USERNAME}:{ADMIN_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
                 isolation_level="AUTOCOMMIT",
             )
             with admin_engine.connect() as conn:
-                conn.execute(text(f"CREATE DATABASE {DB_NAME}"))
-            logging.info(f"Database '{DB_NAME}' created successfully.")
-
-            # Подключаемся к базе данных и инициализируем ее с помощью SQL скрипта
-            command = [
-                "psql",
-                "-d",
-                ADMIN_USERNAME,
-                "-U",
-                ADMIN_USERNAME,
-                "-h",
-                DB_HOST,
-                "-p",
-                DB_PORT,
-                "-f",
-                DB_INIT_SCRIPT,
-            ]
-            env = os.environ.copy()  # Копируем переменные окружения
-            env["PGPASSWORD"] = (
-                ADMIN_PASSWORD  # Устанавливаем пароль для подключения к базе данных
-            )
-
-            subprocess.run(command, env=env, check=True)
-            logging.info("Database initialized successfully with provided SQL script.")
+                conn.execute(
+                    text("CALL delivery_init_schema.create_delivery_tables();")
+                )
+            logging.info("Database initialized successfully.")
             return True
         except Exception as e:
             logging.error(f"Error initializing database: {e}")

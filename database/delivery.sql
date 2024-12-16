@@ -1,3 +1,5 @@
+-- *** ИНИЦИАЛИЗАЦИЯ ***
+-- Управление пользователями, схемой и базовой настройкой
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -7,80 +9,75 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- Удаляем схему и базу, если существуют
+DROP SCHEMA IF EXISTS delivery_tables_schema CASCADE;
 DROP SCHEMA IF EXISTS delivery_schema CASCADE;
-
+DROP SCHEMA IF EXISTS delivery_init_schema CASCADE;
 DROP DATABASE IF EXISTS delivery;
-
 DROP ROLE IF EXISTS chill_user;
 
--- Создаем пользователя с ограниченными правами для использования (до этого работает от chill_owner)
+-- Создаем пользователя с ограниченными правами
 CREATE USER chill_user WITH PASSWORD 'im_just_chill_guy';
 
 -- Создаем базу данных
-CREATE DATABASE delivery;
+CREATE DATABASE delivery WITH OWNER chill_owner;
 
 -- Подключаемся к базе данных
 \c delivery
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SET check_function_bodies = false;
-SET client_min_messages = warning;
-SET row_security = off;
+-- Создаем схему для таблиц
+CREATE SCHEMA delivery_tables_schema;
+-- Создаем схему для процедур и функций
+CREATE SCHEMA delivery_schema;
+-- Создаем схему для инициализации
+CREATE SCHEMA delivery_init_schema;
 
--- Создаем схему
-CREATE SCHEMA delivery_schema AUTHORIZATION chill_owner;
+-- Добавляем в search_path обе схемы
+ALTER DATABASE delivery SET search_path TO delivery_schema, delivery_tables_schema, delivery_init_schema, public;
 
--- Добавляем в search_path
-SET search_path TO delivery_schema;
-
--- Установим search_path на уровне базы данных
-ALTER DATABASE delivery SET search_path TO delivery_schema, public;
-
+-- *** ТАБЛИЦЫ ***
+-- Создание таблиц в схеме delivery_tables_schema
 -- Таблица Users
-CREATE TABLE delivery_schema.Users (
-    user_id SERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
-    email VARCHAR(50) UNIQUE,
-    phone VARCHAR(15) NOT NULL,
-    address VARCHAR(100) NOT NULL
-);
+-- CREATE TABLE delivery_tables_schema.Users (
+--     user_id SERIAL PRIMARY KEY,
+--     name VARCHAR(50) NOT NULL,
+--     email VARCHAR(50) UNIQUE,
+--     phone VARCHAR(15) NOT NULL,
+--     address VARCHAR(100) NOT NULL
+-- );
 
--- Таблица Products
-CREATE TABLE delivery_schema.Products (
-    product_id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    price INT NOT NULL CONSTRAINT positive_price CHECK (price > 0),
-    stock INT NOT NULL CONSTRAINT positive_stock CHECK (stock > 0)
-);
+-- -- Таблица Products
+-- CREATE TABLE delivery_tables_schema.Products (
+--     product_id SERIAL PRIMARY KEY,
+--     name VARCHAR(100) NOT NULL,
+--     description TEXT,
+--     price INT NOT NULL CONSTRAINT positive_price CHECK (price > 0),
+--     stock INT NOT NULL CONSTRAINT positive_stock CHECK (stock > 0)
+-- );
 
--- Таблица Orders
-CREATE TABLE delivery_schema.Orders (
-    order_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES Users(user_id) ON DELETE CASCADE,
-    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    total_cost INT DEFAULT 0,
-    status VARCHAR(20) NOT NULL
-);
+-- -- Таблица Orders
+-- CREATE TABLE delivery_tables_schema.Orders (
+--     order_id SERIAL PRIMARY KEY,
+--     user_id INT REFERENCES delivery_tables_schema.Users(user_id) ON DELETE CASCADE,
+--     order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--     total_cost INT DEFAULT 0,
+--     status VARCHAR(20) NOT NULL
+-- );
 
--- Таблица OrderItems
-CREATE TABLE delivery_schema.OrderItems (
-    order_item_id SERIAL PRIMARY KEY,
-    order_id INT REFERENCES Orders(order_id) ON DELETE CASCADE,
-    product_id INT REFERENCES Products(product_id) ON DELETE CASCADE,
-    quantity INT NOT NULL CONSTRAINT positive_quantity CHECK (quantity > 0)
-);
+-- -- Таблица OrderItems
+-- CREATE TABLE delivery_tables_schema.OrderItems (
+--     order_item_id SERIAL PRIMARY KEY,
+--     order_id INT REFERENCES delivery_tables_schema.Orders(order_id) ON DELETE CASCADE,
+--     product_id INT REFERENCES delivery_tables_schema.Products(product_id) ON DELETE CASCADE,
+--     quantity INT NOT NULL CONSTRAINT positive_quantity CHECK (quantity > 0)
+-- );
 
--- Индекс по полю name в таблице Products
-CREATE INDEX lower_idx_product_name ON Products(lower(name));
+-- Создание индексов
+CREATE INDEX lower_idx_product_name ON delivery_tables_schema.Products(lower(name));
+CREATE INDEX lower_idx_username ON delivery_tables_schema.Users(lower(name));
 
--- Индекс по полю name в таблице Users
-CREATE INDEX lower_idx_username ON Users(lower(name));
-
+-- *** ПРОЦЕДУРЫ И ФУНКЦИИ ***
+-- Логика в схеме delivery_schema
 -- Триггер для вычисления общей стоимости заказа
 CREATE OR REPLACE FUNCTION delivery_schema.calculate_total_cost() RETURNS TRIGGER AS $$
 DECLARE
@@ -89,22 +86,22 @@ BEGIN
     -- Пересчитываем общую стоимость
     SELECT COALESCE(SUM(p.price * oi.quantity), 0)
     INTO current_total_cost
-    FROM delivery_schema.OrderItems oi
-    JOIN delivery_schema.Products p ON oi.product_id = p.product_id
+    FROM delivery_tables_schema.OrderItems oi
+    JOIN delivery_tables_schema.Products p ON oi.product_id = p.product_id
     WHERE oi.order_id = COALESCE(NEW.order_id, OLD.order_id); -- Для корректной работы с UPDATE и DELETE
 
     -- Обновляем поле total_cost
-    UPDATE delivery_schema.Orders
+    UPDATE delivery_tables_schema.Orders
     SET total_cost = current_total_cost
     WHERE order_id = COALESCE(NEW.order_id, OLD.order_id);
 
     -- Обновляем статус заказа в зависимости от total_cost
     IF current_total_cost > 0 THEN
-        UPDATE delivery_schema.Orders
+        UPDATE delivery_tables_schema.Orders
         SET status = 'Pending'
         WHERE order_id = COALESCE(NEW.order_id, OLD.order_id);
     ELSE
-        UPDATE delivery_schema.Orders
+        UPDATE delivery_tables_schema.Orders
         SET status = 'Created'
         WHERE order_id = COALESCE(NEW.order_id, OLD.order_id);
     END IF;
@@ -113,22 +110,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS calculate_total_cost_trigger ON delivery_schema.OrderItems;
-
 CREATE TRIGGER calculate_total_cost_trigger
-AFTER INSERT OR UPDATE OR DELETE ON delivery_schema.OrderItems
+AFTER INSERT OR UPDATE OR DELETE ON delivery_tables_schema.OrderItems
 FOR EACH ROW
 EXECUTE FUNCTION delivery_schema.calculate_total_cost();
 
 -- Триггер для уменьшения количества товара на складе
 CREATE OR REPLACE FUNCTION delivery_schema.decrease_product_stock() RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE Products
+    UPDATE delivery_tables_schema.Products
     SET stock = stock - NEW.quantity
     WHERE product_id = NEW.product_id;
 
     -- Проверяем, что stock не стал отрицательным
-    IF (SELECT stock FROM Products WHERE product_id = NEW.product_id) < 0 THEN
+    IF (SELECT stock FROM delivery_tables_schema.Products WHERE product_id = NEW.product_id) < 0 THEN
         RAISE EXCEPTION 'Insufficient stock for product_id %', NEW.product_id;
     END IF;
 
@@ -137,7 +132,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER decrease_product_stock_trigger
-AFTER INSERT ON delivery_schema.OrderItems
+AFTER INSERT ON delivery_tables_schema.OrderItems
 FOR EACH ROW
 EXECUTE FUNCTION delivery_schema.decrease_product_stock();
 
@@ -146,23 +141,23 @@ CREATE OR REPLACE FUNCTION delivery_schema.update_product_stock() RETURNS TRIGGE
 BEGIN
     IF NEW.quantity = 0 THEN
         -- Возвращаем товар на склад перед удалением строки
-        UPDATE Products
+        UPDATE delivery_tables_schema.Products
         SET stock = stock + OLD.quantity
         WHERE product_id = OLD.product_id;
 
         -- Удаляем строку из OrderItems
-        DELETE FROM OrderItems WHERE order_item_id = OLD.order_item_id;
+        DELETE FROM delivery_tables_schema.OrderItems WHERE order_item_id = OLD.order_item_id;
 
         RETURN NULL; -- Указывает, что строка должна быть удалена
     END IF;
 
     -- Обновляем запасы на складе, если quantity изменилось
-    UPDATE Products
+    UPDATE delivery_tables_schema.Products
     SET stock = stock + OLD.quantity - NEW.quantity
     WHERE product_id = NEW.product_id;
 
     -- Проверяем, что stock не стал отрицательным
-    IF (SELECT stock FROM Products WHERE product_id = NEW.product_id) < 0 THEN
+    IF (SELECT stock FROM delivery_tables_schema.Products WHERE product_id = NEW.product_id) < 0 THEN
         RAISE EXCEPTION 'Insufficient stock for product_id %', NEW.product_id;
     END IF;
 
@@ -170,10 +165,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS update_product_stock_trigger ON delivery_schema.OrderItems;
-
 CREATE TRIGGER update_product_stock_trigger
-BEFORE UPDATE ON delivery_schema.OrderItems
+BEFORE UPDATE ON delivery_tables_schema.OrderItems
 FOR EACH ROW
 EXECUTE FUNCTION delivery_schema.update_product_stock();
 
@@ -181,13 +174,13 @@ EXECUTE FUNCTION delivery_schema.update_product_stock();
 CREATE OR REPLACE FUNCTION delivery_schema.delete_order_item() RETURNS TRIGGER AS $$
 BEGIN
     -- Возвращаем товар на склад перед удалением строки
-    UPDATE Products
+    UPDATE delivery_tables_schema.Products
     SET stock = stock + OLD.quantity
     WHERE product_id = OLD.product_id;
 
     -- Обновляем общую стоимость заказа
-    UPDATE Orders 
-    SET total_cost = total_cost - OLD.quantity * (SELECT price FROM Products WHERE product_id = OLD.product_id)
+    UPDATE delivery_tables_schema.Orders 
+    SET total_cost = total_cost - OLD.quantity * (SELECT price FROM delivery_tables_schema.Products WHERE product_id = OLD.product_id)
     WHERE order_id = OLD.order_id;
 
     -- Возвращаем NULL, чтобы позволить стандартное удаление строки
@@ -195,10 +188,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS delete_order_item_trigger ON delivery_schema.OrderItems;
-
 CREATE TRIGGER delete_order_item_trigger
-BEFORE DELETE ON delivery_schema.OrderItems
+BEFORE DELETE ON delivery_tables_schema.OrderItems
 FOR EACH ROW
 EXECUTE FUNCTION delivery_schema.delete_order_item();
 
@@ -208,17 +199,75 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA delivery_schema TO chill_user;
 GRANT USAGE ON SCHEMA delivery_schema TO chill_user;
 
 -- TO-DO Процедуры для работы с данными
+-- Проверка наличия хотя бы одной таблицы
+CREATE OR REPLACE FUNCTION delivery_init_schema.check_database_existence() RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'delivery_tables_schema'
+    );
+END;
+$$ LANGUAGE plpgsql;
 
--- Удаление базы данных
-CREATE OR REPLACE PROCEDURE drop_delivery_tables()
+-- Создание базы данных 
+CREATE OR REPLACE PROCEDURE delivery_init_schema.create_delivery_tables()
 LANGUAGE plpgsql AS $$
 BEGIN
+    CREATE SCHEMA IF NOT EXISTS delivery_tables_schema;
+
+    CREATE TABLE delivery_tables_schema.Users (
+        user_id SERIAL PRIMARY KEY,
+        name VARCHAR(50) NOT NULL,
+        email VARCHAR(50) UNIQUE,
+        phone VARCHAR(15) NOT NULL,
+        address VARCHAR(100) NOT NULL
+    );
+
+    CREATE TABLE delivery_tables_schema.Products (
+        product_id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        price INT NOT NULL CONSTRAINT positive_price CHECK (price > 0),
+        stock INT NOT NULL CONSTRAINT positive_stock CHECK (stock > 0)
+    );
+
+    CREATE TABLE delivery_tables_schema.Orders (
+        order_id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES delivery_tables_schema.Users(user_id) ON DELETE CASCADE,
+        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        total_cost INT DEFAULT 0,
+        status VARCHAR(20) NOT NULL
+    );
+
+    CREATE TABLE delivery_tables_schema.OrderItems (
+        order_item_id SERIAL PRIMARY KEY,
+        order_id INT REFERENCES delivery_tables_schema.Orders(order_id) ON DELETE CASCADE,
+        product_id INT REFERENCES delivery_tables_schema.Products(product_id) ON DELETE CASCADE,
+        quantity INT NOT NULL CONSTRAINT positive_quantity CHECK (quantity > 0)
+    );
+
+    CREATE INDEX lower_idx_product_name ON delivery_tables_schema.Products(lower(name));
+    CREATE INDEX lower_idx_username ON delivery_tables_schema.Users(lower(name));
+
+    -- Даем доступ пользователю chill_user к схеме с таблицами
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA delivery_tables_schema TO chill_user;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA delivery_tables_schema TO chill_user;
+    GRANT USAGE ON SCHEMA delivery_tables_schema TO chill_user;
+END;
+$$;
+
+-- Удаление базы данных
+CREATE OR REPLACE PROCEDURE delivery_init_schema.drop_delivery_tables()
+LANGUAGE plpgsql AS $$
+BEGIN
+    EXECUTE 'DROP SCHEMA IF EXISTS delivery_tables_schema CASCADE';
     EXECUTE 'DROP SCHEMA IF EXISTS delivery_schema CASCADE';
 END;
 $$;
 
 -- Вывод содержимого всех таблиц
-CREATE OR REPLACE FUNCTION show_tables_content()
+CREATE OR REPLACE FUNCTION delivery_schema.show_tables_content()
 RETURNS TABLE(table_name TEXT, row_content JSON) AS $$
 DECLARE
     tbl_name TEXT;
@@ -226,7 +275,7 @@ BEGIN
     FOR tbl_name IN
         SELECT tablename
         FROM pg_tables
-        WHERE schemaname = 'delivery_schema'
+        WHERE schemaname = 'delivery_tables_schema'
     LOOP
         RETURN QUERY EXECUTE FORMAT(
             'SELECT %L AS table_name, row_to_json(t) AS row_content FROM %I t',
@@ -238,7 +287,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Очистка одной из таблиц(название задается пользователем)
-CREATE OR REPLACE PROCEDURE clear_sertain_table(t_name TEXT)
+CREATE OR REPLACE PROCEDURE delivery_schema.clear_sertain_table(t_name TEXT)
 LANGUAGE plpgsql AS $$
 DECLARE
   request TEXT;
@@ -259,44 +308,44 @@ $$;
 --Добавление новых данных в таблицу
 --Обязательно указывать типы данных(idk why)
 --EXAMPLE: SELECT add_info('Levchik'::varchar, 'lew.cherezow@gmail.com'::varchar, '228'::varchar, 'sormovo'::varchar)
-CREATE OR REPLACE FUNCTION add_info(p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15), p_address VARCHAR(100))
+CREATE OR REPLACE FUNCTION delivery_schema.add_info(p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15), p_address VARCHAR(100))
 RETURNS VOID AS $$
 BEGIN
-    INSERT INTO delivery_schema.Users(name, email, phone, address) VALUES (p_name, p_email, p_phone, p_address);
+    INSERT INTO delivery_tables_schema.Users(name, email, phone, address) VALUES (p_name, p_email, p_phone, p_address);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION add_info(p_name VARCHAR(100),p_description TEXT,p_price INT,p_stock INT)
+CREATE OR REPLACE FUNCTION delivery_schema.add_info(p_name VARCHAR(100),p_description TEXT,p_price INT,p_stock INT)
 RETURNS VOID AS $$
 BEGIN
-    INSERT INTO delivery_schema.Products(name, description, price, stock) VALUES (p_name, p_description, p_price, p_stock);
+    INSERT INTO delivery_tables_schema.Products(name, description, price, stock) VALUES (p_name, p_description, p_price, p_stock);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION add_info(p_user_id INT, p_status VARCHAR(20), p_total_cost INT DEFAULT 0)
+CREATE OR REPLACE FUNCTION delivery_schema.add_info(p_user_id INT, p_status VARCHAR(20), p_total_cost INT DEFAULT 0)
 RETURNS VOID AS $$
 BEGIN
-    INSERT INTO delivery_schema.Orders(user_id, total_cost, status) VALUES (p_user_id, p_total_cost, p_status);
+    INSERT INTO delivery_tables_schema.Orders(user_id, total_cost, status) VALUES (p_user_id, p_total_cost, p_status);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION add_info(p_order_id INT, p_product_id INT, p_quantity INT)
+CREATE OR REPLACE FUNCTION delivery_schema.add_info(p_order_id INT, p_product_id INT, p_quantity INT)
 RETURNS VOID AS $$
 BEGIN
-    INSERT INTO delivery_schema.Orderitems(order_id, product_id, quantity) VALUES (p_order_id, p_product_id, p_quantity);
+    INSERT INTO delivery_tables_schema.OrderItems(order_id, product_id, quantity) VALUES (p_order_id, p_product_id, p_quantity);
 EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Ошибка при добавлении пользователя: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Поиск по заданному полю description в таблице Products
-CREATE OR REPLACE FUNCTION search_products_by_desc(p_desc TEXT)
+CREATE OR REPLACE FUNCTION delivery_schema.search_products_by_desc(p_desc TEXT)
 RETURNS TABLE(product_id INT, name VARCHAR(100), description TEXT, price INT, stock INT) AS $$
 BEGIN
     RETURN QUERY
@@ -307,17 +356,17 @@ BEGIN
         p.price,
         p.stock
     FROM 
-        delivery_schema.Products p
+        delivery_tables_schema.Products p
     WHERE 
         p.description ILIKE '%' || p_desc || '%';
 END;
 $$ LANGUAGE plpgsql;
 
 --Обновление кортежа
-CREATE OR REPLACE FUNCTION update_cortege(p_user_id INT, p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15),p_address VARCHAR(100))
+CREATE OR REPLACE FUNCTION delivery_schema.update_cortege(p_user_id INT, p_name VARCHAR(50), p_email VARCHAR(50), p_phone VARCHAR(15),p_address VARCHAR(100))
 RETURNS VOID AS $$
 BEGIN
-    UPDATE delivery_schema.Users
+    UPDATE delivery_tables_schema.Users
     SET name = p_name, email = p_email, phone = p_phone, address = p_address
     WHERE user_id = p_user_id;
     IF NOT FOUND THEN
@@ -328,10 +377,10 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION update_cortege(p_order_id INT, p_user_id INT, p_status VARCHAR(20))
+CREATE OR REPLACE FUNCTION delivery_schema.update_cortege(p_order_id INT, p_user_id INT, p_status VARCHAR(20))
 RETURNS VOID AS $$
 BEGIN
-    UPDATE delivery_schema.Orders
+    UPDATE delivery_tables_schema.Orders
     SET status = p_status
     WHERE order_id = p_order_id;
     IF NOT FOUND THEN
@@ -342,10 +391,10 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION update_cortege(p_order_item_id INT, p_order_id INT, p_product_id INT, p_quantity INT)
+CREATE OR REPLACE FUNCTION delivery_schema.update_cortege(p_order_item_id INT, p_order_id INT, p_product_id INT, p_quantity INT)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE delivery_schema.OrderItems
+    UPDATE delivery_tables_schema.OrderItems
     SET product_id = p_product_id, quantity = p_quantity
     WHERE order_item_id = p_order_item_id;
     IF NOT FOUND THEN
@@ -356,10 +405,10 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION update_cortege(p_product_id INT, p_name TEXT, p_description TEXT, p_stock INT)
+CREATE OR REPLACE FUNCTION delivery_schema.update_cortege(p_product_id INT, p_name TEXT, p_description TEXT, p_stock INT)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE delivery_schema.Products
+    UPDATE delivery_tables_schema.Products
     SET name = p_name, description = p_description, stock = p_stock
     WHERE product_id = p_product_id;
     IF NOT FOUND THEN
@@ -371,13 +420,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Очистка всех таблиц
-CREATE OR REPLACE PROCEDURE clear_all_tables()
+CREATE OR REPLACE PROCEDURE delivery_schema.clear_all_tables()
 LANGUAGE plpgsql AS $$
 BEGIN
-  DELETE FROM delivery_schema.users;
-  DELETE FROM delivery_schema.orders;
-  DELETE FROM delivery_schema.orderitems;
-  DELETE FROM delivery_schema.products;
+  DELETE FROM delivery_tables_schema.Users;
+  DELETE FROM delivery_tables_schema.Orders;
+  DELETE FROM delivery_tables_schema.OrderItems;
+  DELETE FROM delivery_tables_schema.Products;
   RAISE NOTICE 'Таблицы в схеме delivery_schema очищены.';
 EXCEPTION WHEN OTHERS THEN
   RAISE EXCEPTION 'Ошибка при очистке таблиц в схеме delivery_schema: %', SQLERRM;
@@ -385,7 +434,7 @@ END;
 $$;
 
 -- Удаление по заданному полю description в таблице Products
-CREATE OR REPLACE PROCEDURE delete_products_by_desc(p_desc TEXT)
+CREATE OR REPLACE PROCEDURE delivery_schema.delete_products_by_desc(p_desc TEXT)
 LANGUAGE plpgsql AS $$
 DECLARE
   v_desc TEXT;
@@ -394,10 +443,10 @@ BEGIN
   v_desc:= '%' || p_desc || '%';
 
   FOR rec IN SELECT product_id, name, description, price, stock
-  FROM delivery_schema.Products
+  FROM delivery_tables_schema.Products
   WHERE description ILIKE v_desc
   LOOP
-    DELETE FROM delivery_schema.Products
+    DELETE FROM delivery_tables_schema.Products
     WHERE product_id = rec.product_id;
   END LOOP;
 
@@ -407,17 +456,17 @@ END;
 $$;
 
 -- Удаление записи по имени таблицы и айди записи
-CREATE OR REPLACE PROCEDURE delete_specific_record(t_name TEXT, id INT)
+CREATE OR REPLACE PROCEDURE delivery_schema.delete_specific_record(t_name TEXT, id INT)
 LANGUAGE plpgsql AS $$
 BEGIN
     IF t_name = 'users' THEN
-        DELETE FROM delivery_schema.Users WHERE user_id = id;
+        DELETE FROM delivery_tables_schema.Users WHERE user_id = id;
     ELSIF t_name = 'products' THEN
-        DELETE FROM delivery_schema.Products WHERE product_id = id;
+        DELETE FROM delivery_tables_schema.Products WHERE product_id = id;
     ELSIF t_name = 'orderitems' THEN
-        DELETE FROM delivery_schema.OrderItems WHERE order_item_id = id;
+        DELETE FROM delivery_tables_schema.OrderItems WHERE order_item_id = id;
     ELSIF t_name = 'orders' THEN
-        DELETE FROM delivery_schema.Orders WHERE order_id = id;
+        DELETE FROM delivery_tables_schema.Orders WHERE order_id = id;
     ELSE
         RAISE EXCEPTION 'Table "%s" is not allowed for deletion.', t_name;
     END IF;
@@ -429,21 +478,27 @@ EXCEPTION
 END;
 $$;
 
+-- Даем доступ пользователю chill_user к схеме с таблицами
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA delivery_tables_schema TO chill_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA delivery_tables_schema TO chill_user;
+GRANT USAGE ON SCHEMA delivery_tables_schema TO chill_user;
+GRANT USAGE ON SCHEMA delivery_schema TO chill_user;
+GRANT USAGE ON SCHEMA delivery_init_schema TO chill_user;
 
--- Заполнение таблиц
+-- -- Заполнение таблиц
 
--- Добавляем пользователя в таблицу Users
-INSERT INTO delivery_schema.Users (name, email, phone, address)
-VALUES ('vadim', 'mvarodi@main.ru', '911', 'kirov');
+-- -- Добавляем пользователя в таблицу Users
+-- INSERT INTO delivery_tables_schema.Users (name, email, phone, address)
+-- VALUES ('vadim', 'mvarodi@main.ru', '911', 'kirov');
 
--- Добавляем продукт в таблицу Products
-INSERT INTO delivery_schema.Products (name, description, price, stock)
-VALUES ('BanAna', 'Банан 1кг', 200, 5);
+-- -- Добавляем продукт в таблицу Products
+-- INSERT INTO delivery_tables_schema.Products (name, description, price, stock)
+-- VALUES ('BanAna', 'Банан 1кг', 200, 5);
 
--- Добавляем заказ в таблицу Orders
-INSERT INTO delivery_schema.Orders (user_id, status)
-VALUES (1, 'Created');
+-- -- Добавляем заказ в таблицу Orders
+-- INSERT INTO delivery_tables_schema.Orders (user_id, status)
+-- VALUES (1, 'Created');
 
--- Добавляем элемент заказа в таблицу OrderItems
-INSERT INTO delivery_schema.OrderItems (order_id, product_id, quantity)
-VALUES (1, 1, 2);
+-- -- Добавляем элемент заказа в таблицу OrderItems
+-- INSERT INTO delivery_tables_schema.OrderItems (order_id, product_id, quantity)
+-- VALUES (1, 1, 2);

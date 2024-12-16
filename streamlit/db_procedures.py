@@ -27,7 +27,7 @@ class DatabaseManager:
     @logs
     def delete_database(self):
         """Удаление базы данных"""
-        query = text("CALL drop_delivery_tables();")
+        query = text("CALL delivery_init_schema.drop_delivery_tables();")
         try:
             with self.engine.connect() as conn:
                 logging.debug(f"Dropping database {self.engine.url.database}")
@@ -40,7 +40,7 @@ class DatabaseManager:
     @logs
     def show_tables_content(self):
         """Вывод содержимого таблиц"""
-        query = text("SELECT * FROM show_tables_content();")
+        query = text("SELECT * FROM delivery_schema.show_tables_content();")
         try:
             with self.engine.connect() as conn:
                 result = self.__safe_execute(conn, query, None)
@@ -52,7 +52,7 @@ class DatabaseManager:
     @logs
     def clear_table(self, table_name):
         """Очистка одной таблицы"""
-        query = text("CALL clear_sertain_table(:table_name);")
+        query = text("CALL delivery_schema.clear_sertain_table(:table_name);")
         params = {"table_name": table_name.lower()}
         try:
             with self.engine.connect() as conn:
@@ -66,7 +66,7 @@ class DatabaseManager:
     @logs
     def clear_all_tables(self):
         """Очистка всех таблиц"""
-        query = text("CALL clear_all_tables();")
+        query = text("CALL delivery_schema.clear_all_tables();")
         try:
             with self.engine.connect() as conn:
                 logging.debug("Clearing all tables")
@@ -92,7 +92,9 @@ class DatabaseManager:
                 "price": data["price"],
                 "stock": data["stock"],
             }
-            query = text("SELECT add_info(:name, :description, :price, :stock);")
+            query = text(
+                "SELECT delivery_schema.add_info(:name, :description, :price, :stock);"
+            )
         elif table_name.lower() == "users":
             params = {
                 "name": data["name"],
@@ -101,7 +103,7 @@ class DatabaseManager:
                 "address": data["address"],
             }
             query = text(
-                "SELECT add_info(CAST(:name AS varchar), CAST(:email AS varchar), CAST(:phone AS varchar), CAST(:address AS varchar));"
+                "SELECT delivery_schema.add_info(CAST(:name AS varchar), CAST(:email AS varchar), CAST(:phone AS varchar), CAST(:address AS varchar));"
             )
         elif table_name.lower() == "orderitems":
             params = {
@@ -109,13 +111,15 @@ class DatabaseManager:
                 "product_id": data["product_id"],
                 "quantity": data["quantity"],
             }
-            query = text("SELECT add_info(:order_id, :product_id, :quantity);")
+            query = text(
+                "SELECT delivery_schema.add_info(:order_id, :product_id, :quantity);"
+            )
         elif table_name.lower() == "orders":
             params = {
                 "user_id": data["user_id"],
                 "status": data["status"],
             }
-            query = text("SELECT add_info(:user_id, :status);")
+            query = text("SELECT delivery_schema.add_info(:user_id, :status);")
         else:
             logging.error(f"Error adding data: table '{table_name.lower()}' not found")
             return False
@@ -133,7 +137,7 @@ class DatabaseManager:
     @logs
     def search_by_text_field(self, request_msg_desc):
         """Поиск по заранее выбранному (вами) текстовому не ключевому полю"""
-        query = text("SELECT * FROM search_products_by_desc(:msg);")
+        query = text("SELECT * FROM delivery_schema.search_products_by_desc(:msg);")
         params = {"msg": request_msg_desc}
 
         try:
@@ -165,7 +169,7 @@ class DatabaseManager:
                     "price": data["price"],
                 }
                 query = text(
-                    "SELECT update_cortege(:key, :name, :description, :price);"
+                    "SELECT delivery_schema.update_cortege(:key, :name, :description, :price);"
                 )
             elif table_name.lower() == "users":
                 params = {
@@ -176,7 +180,7 @@ class DatabaseManager:
                     "address": data["address"],
                 }
                 query = text(
-                    "SELECT update_cortege(:key, :name, :email, :phone, :address);"
+                    "SELECT delivery_schema.update_cortege(:key, :name, :email, :phone, :address);"
                 )
             elif table_name.lower() == "orderitems":
                 params = {
@@ -186,7 +190,7 @@ class DatabaseManager:
                     "quantity": data["quantity"],
                 }
                 query = text(
-                    "SELECT update_cortege(:key, :order_id, :product_id, :quantity);"
+                    "SELECT delivery_schema.update_cortege(:key, :order_id, :product_id, :quantity);"
                 )
             elif table_name.lower() == "orders":
                 params = {
@@ -194,7 +198,9 @@ class DatabaseManager:
                     "user_id": data["user_id"],
                     "status": data["status"],
                 }
-                query = text("SELECT update_cortege(:key, :user_id, :status);")
+                query = text(
+                    "SELECT delivery_schema.update_cortege(:key, :user_id, :status);"
+                )
         except Exception as e:
             logging.error(f"Error updating row: {e}")
             return False
@@ -212,7 +218,7 @@ class DatabaseManager:
     @logs
     def delete_by_text_field(self, request_msg_desc):
         """Удаление по заранее выбранному текстовому не ключевому полю"""
-        query = text("CALL delete_products_by_desc(:msg);")
+        query = text("CALL delivery_schema.delete_products_by_desc(:msg);")
         params = {"msg": request_msg_desc}
 
         try:
@@ -227,7 +233,7 @@ class DatabaseManager:
     @logs
     def delete_specific_record(self, table_name, key):
         """Удаление конкретной записи, выбранной пользователем"""
-        query = text("CALL delete_specific_record(:table_name, :key);")
+        query = text("CALL delivery_schema.delete_specific_record(:table_name, :key);")
         params = {"table_name": table_name.lower(), "key": key}
         try:
             with self.engine.connect() as conn:
