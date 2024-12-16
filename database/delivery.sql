@@ -378,9 +378,9 @@ BEGIN
   DELETE FROM delivery_schema.orders;
   DELETE FROM delivery_schema.orderitems;
   DELETE FROM delivery_schema.products;
-  RAISE NOTICE 'Таблицы в схеме my_schema очищены.';
+  RAISE NOTICE 'Таблицы в схеме delivery_schema очищены.';
 EXCEPTION WHEN OTHERS THEN
-  RAISE EXCEPTION 'Ошибка при очистке таблиц в схеме my_schema: %', SQLERRM;
+  RAISE EXCEPTION 'Ошибка при очистке таблиц в схеме delivery_schema: %', SQLERRM;
 END;
 $$;
 

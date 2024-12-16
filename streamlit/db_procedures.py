@@ -16,10 +16,10 @@ class DatabaseManager:
 
     @logs
     def test_connection(self):
+        query = text("SELECT 1")
         try:
             with self.engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            return True
+                return self.__safe_execute(conn, query, None)
         except SQLAlchemyError as e:
             logging.error(f"Error testing connection: {e}")
             return False
@@ -27,12 +27,11 @@ class DatabaseManager:
     @logs
     def delete_database(self):
         """Удаление базы данных"""
+        query = text("CALL drop_delivery_tables();")
         try:
             with self.engine.connect() as conn:
                 logging.debug(f"Dropping database {self.engine.url.database}")
-                conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text("CALL drop_delivery_tables();")
-                )
+                self.__safe_execute(conn, query, None)
             return True
         except SQLAlchemyError as e:
             logging.error(f"Error deleting database: {e}")
@@ -41,9 +40,10 @@ class DatabaseManager:
     @logs
     def show_tables_content(self):
         """Вывод содержимого таблиц"""
+        query = text("SELECT * FROM show_tables_content();")
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(text("SELECT * FROM show_tables_content();"))
+                result = self.__safe_execute(conn, query, None)
                 return result.fetchall()
         except SQLAlchemyError as e:
             logging.error(f"Error showing tables content: {e}")
@@ -52,12 +52,12 @@ class DatabaseManager:
     @logs
     def clear_table(self, table_name):
         """Очистка одной таблицы"""
+        query = text("CALL clear_sertain_table(:table_name);")
+        params = {"table_name": table_name.lower()}
         try:
             with self.engine.connect() as conn:
                 logging.debug(f"Clearing table '{table_name.lower()}'")
-                conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text(f"CALL clear_sertain_table('{table_name.lower()}');")
-                )
+                self.__safe_execute(conn, query, params)
             return True
         except SQLAlchemyError as e:
             logging.error(f"Error clearing table {table_name}: {e}")
@@ -66,12 +66,11 @@ class DatabaseManager:
     @logs
     def clear_all_tables(self):
         """Очистка всех таблиц"""
+        query = text("CALL clear_all_tables();")
         try:
             with self.engine.connect() as conn:
                 logging.debug("Clearing all tables")
-                conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text("CALL clear_all_tables();")
-                )
+                self.__safe_execute(conn, query, None)
             return True
         except SQLAlchemyError as e:
             logging.error(f"Error clearing all tables: {e}")
@@ -83,39 +82,50 @@ class DatabaseManager:
         if not table_name or not data:
             return False
 
+        params = {}
         query = ""
         logging.debug(f"Adding data to table '{table_name.lower()}'")
         if table_name.lower() == "products":
-            name = data["name"]
-            description = data["description"]
-            price = data["price"]
-            stock = data["stock"]
-            query = f"SELECT add_info('{name}', '{description}', {price}, {stock});"
+            params = {
+                "name": data["name"],
+                "description": data["description"],
+                "price": data["price"],
+                "stock": data["stock"],
+            }
+            query = text("SELECT add_info(:name, :description, :price, :stock);")
         elif table_name.lower() == "users":
-            name = data["name"]
-            email = data["email"]
-            phone = data["phone"]
-            address = data["address"]
-            query = f"SELECT add_info('{name}'::varchar, '{email}'::varchar, '{phone}'::varchar, '{address}'::varchar);"
+            params = {
+                "name": data["name"],
+                "email": data["email"],
+                "phone": data["phone"],
+                "address": data["address"],
+            }
+            query = text(
+                "SELECT add_info(CAST(:name AS varchar), CAST(:email AS varchar), CAST(:phone AS varchar), CAST(:address AS varchar));"
+            )
         elif table_name.lower() == "orderitems":
-            order_id = data["order_id"]
-            product_id = data["product_id"]
-            quantity = data["quantity"]
-            query = f"SELECT add_info({order_id}, {product_id}, {quantity});"
+            params = {
+                "order_id": data["order_id"],
+                "product_id": data["product_id"],
+                "quantity": data["quantity"],
+            }
+            query = text("SELECT add_info(:order_id, :product_id, :quantity);")
         elif table_name.lower() == "orders":
-            user_id = data["user_id"]
-            status = data["status"]
-            query = f"SELECT add_info({user_id}, '{status}');"
+            params = {
+                "user_id": data["user_id"],
+                "status": data["status"],
+            }
+            query = text("SELECT add_info(:user_id, :status);")
         else:
             logging.error(f"Error adding data: table '{table_name.lower()}' not found")
             return False
 
         try:
             with self.engine.connect() as conn:
-                conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text(query)
+                logging.debug(
+                    f"Adding data to table '{table_name.lower()}' with query: '{query}'"
                 )
-            return True
+                return self.__safe_execute(conn, query, params)
         except SQLAlchemyError as e:
             logging.error(f"Error adding data: {e}")
             return False
@@ -123,14 +133,13 @@ class DatabaseManager:
     @logs
     def search_by_text_field(self, request_msg_desc):
         """Поиск по заранее выбранному (вами) текстовому не ключевому полю"""
+        query = text("SELECT * FROM search_products_by_desc(:msg);")
+        params = {"msg": request_msg_desc}
+
         try:
             with self.engine.connect() as conn:
                 logging.debug(f"Searching by text '{request_msg_desc}'")
-                result = conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text(
-                        f"SELECT * FROM search_products_by_desc('{request_msg_desc}');"
-                    )
-                )
+                result = self.__safe_execute(conn, query, params)
                 return result.fetchall()
         except SQLAlchemyError as e:
             logging.error(f"Error searching by text field: {e}")
@@ -143,32 +152,49 @@ class DatabaseManager:
             return False
 
         query = ""
+        params = {}
         try:
             logging.debug(
                 f"Updating row with key '{key}' in table '{table_name.lower()}'"
             )
             if table_name.lower() == "product":
-                name = data["name"]
-                description = data["description"]
-                price = data["price"]
-                query = (
-                    f"SELECT update_cortege({key}, '{name}', '{description}', {price});"
+                params = {
+                    "key": key,
+                    "name": data["name"],
+                    "description": data["description"],
+                    "price": data["price"],
+                }
+                query = text(
+                    "SELECT update_cortege(:key, :name, :description, :price);"
                 )
             elif table_name.lower() == "users":
-                name = data["name"]
-                email = data["email"]
-                phone = data["phone"]
-                address = data["address"]
-                query = f"SELECT update_cortege({key}, '{name}', '{email}', '{phone}', '{address}');"
+                params = {
+                    "key": key,
+                    "name": data["name"],
+                    "email": data["email"],
+                    "phone": data["phone"],
+                    "address": data["address"],
+                }
+                query = text(
+                    "SELECT update_cortege(:key, :name, :email, :phone, :address);"
+                )
             elif table_name.lower() == "orderitems":
-                order_id = data["order_id"]
-                product_id = data["product_id"]
-                quantity = data["quantity"]
-                query = f"SELECT update_cortege({key}, {order_id}, {product_id}, {quantity});"
+                params = {
+                    "key": key,
+                    "order_id": data["order_id"],
+                    "product_id": data["product_id"],
+                    "quantity": data["quantity"],
+                }
+                query = text(
+                    "SELECT update_cortege(:key, :order_id, :product_id, :quantity);"
+                )
             elif table_name.lower() == "orders":
-                user_id = data["user_id"]
-                status = data["status"]
-                query = f"SELECT update_cortege({key}, {user_id}, '{status}');"
+                params = {
+                    "key": key,
+                    "user_id": data["user_id"],
+                    "status": data["status"],
+                }
+                query = text("SELECT update_cortege(:key, :user_id, :status);")
         except Exception as e:
             logging.error(f"Error updating row: {e}")
             return False
@@ -178,10 +204,7 @@ class DatabaseManager:
                 logging.debug(
                     f"Updating row with key '{key}' in table '{table_name.lower()}'"
                 )
-                conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text(query)
-                )
-            return True
+                return self.__safe_execute(conn, query, params)
         except SQLAlchemyError as e:
             logging.error(f"Error updating row: {e}")
             return False
@@ -189,12 +212,13 @@ class DatabaseManager:
     @logs
     def delete_by_text_field(self, request_msg_desc):
         """Удаление по заранее выбранному текстовому не ключевому полю"""
+        query = text("CALL delete_products_by_desc(:msg);")
+        params = {"msg": request_msg_desc}
+
         try:
             with self.engine.connect() as conn:
                 logging.debug(f"Deleting by text '{request_msg_desc}'")
-                conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text(f"CALL delete_products_by_desc('{request_msg_desc}');")
-                )
+                self.__safe_execute(conn, query, params)
             return True
         except SQLAlchemyError as e:
             logging.error(f"Error deleting by text field: {e}")
@@ -203,16 +227,14 @@ class DatabaseManager:
     @logs
     def delete_specific_record(self, table_name, key):
         """Удаление конкретной записи, выбранной пользователем"""
+        query = text("CALL delete_specific_record(:table_name, :key);")
+        params = {"table_name": table_name.lower(), "key": key}
         try:
             with self.engine.connect() as conn:
                 logging.debug(
                     f"Deleting record with key '{key}' from table '{table_name.lower()}'"
                 )
-                conn.execution_options(isolation_level="AUTOCOMMIT").execute(
-                    text(
-                        f"CALL delete_specific_record('{table_name.lower()}', '{key}');"
-                    )
-                )
+                self.__safe_execute(conn, query, params)
             return True
         except SQLAlchemyError as e:
             logging.error(f"Error deleting specific record: {e}")
@@ -235,3 +257,13 @@ class DatabaseManager:
         # Закрытие соединения с базой данных, если оно было установлено
         if self.engine:
             self.engine.dispose()
+
+    @logs
+    def __safe_execute(self, conn, query, params):
+        try:
+            if params is None:
+                return conn.execute(query)
+            return conn.execute(query, params)
+        except SQLAlchemyError as e:
+            logging.error(f"SQL execution failed: {e}")
+            return False
