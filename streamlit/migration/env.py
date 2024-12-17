@@ -7,7 +7,7 @@ from sqlalchemy import engine_from_config, pool
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-db_url = "postgresql://chill_user:im_just_chill_guy@localhost:5432/delivery"
+db_url = "postgresql://chill_owner:chill_owner@localhost:5432/delivery"
 config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
@@ -21,8 +21,8 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 target_metadata = DatabaseManager(
     db_name="delivery",
-    db_user="chill_user",
-    db_password="im_just_chill_guy",
+    db_user="chill_owner",
+    db_password="chill_owner",
     db_host="localhost",
     db_port="5432",
 ).metadata
