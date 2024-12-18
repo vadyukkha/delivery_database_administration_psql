@@ -14,10 +14,8 @@
     ADMIN_USERNAME="chill_owner"
     ```
 
-2. Чтобы запустить проект пропишите:
+2. Чтобы запустить проект пропишите, скачайте Docker и запустите команду:
 
     ``` bash
-    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
     sudo docker compose up --build
     ```
