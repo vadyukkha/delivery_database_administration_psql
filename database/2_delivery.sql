@@ -23,7 +23,7 @@ CREATE USER chill_user WITH PASSWORD 'im_just_chill_guy';
 CREATE DATABASE delivery WITH OWNER chill_owner;
 
 -- Подключаемся к базе данных
-\c delivery
+\c delivery chill_owner
 
 -- Создаем схему для таблиц
 CREATE SCHEMA delivery_tables_schema;
@@ -38,39 +38,39 @@ ALTER DATABASE delivery SET search_path TO delivery_schema, delivery_tables_sche
 -- *** ТАБЛИЦЫ ***
 -- Создание таблиц в схеме delivery_tables_schema
 -- Таблица Users
--- CREATE TABLE delivery_tables_schema.Users (
---     user_id SERIAL PRIMARY KEY,
---     name VARCHAR(50) NOT NULL,
---     email VARCHAR(50) UNIQUE,
---     phone VARCHAR(15) NOT NULL,
---     address VARCHAR(100) NOT NULL
--- );
+CREATE TABLE delivery_tables_schema.Users (
+    user_id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    email VARCHAR(50) UNIQUE,
+    phone VARCHAR(15) NOT NULL,
+    address VARCHAR(100) NOT NULL
+);
 
--- -- Таблица Products
--- CREATE TABLE delivery_tables_schema.Products (
---     product_id SERIAL PRIMARY KEY,
---     name VARCHAR(100) NOT NULL,
---     description TEXT,
---     price INT NOT NULL CONSTRAINT positive_price CHECK (price > 0),
---     stock INT NOT NULL CONSTRAINT positive_stock CHECK (stock > 0)
--- );
+-- Таблица Products
+CREATE TABLE delivery_tables_schema.Products (
+    product_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price INT NOT NULL CONSTRAINT positive_price CHECK (price > 0),
+    stock INT NOT NULL CONSTRAINT positive_stock CHECK (stock > 0)
+);
 
--- -- Таблица Orders
--- CREATE TABLE delivery_tables_schema.Orders (
---     order_id SERIAL PRIMARY KEY,
---     user_id INT REFERENCES delivery_tables_schema.Users(user_id) ON DELETE CASCADE,
---     order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     total_cost INT DEFAULT 0,
---     status VARCHAR(20) NOT NULL
--- );
+-- Таблица Orders
+CREATE TABLE delivery_tables_schema.Orders (
+    order_id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES delivery_tables_schema.Users(user_id) ON DELETE CASCADE,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_cost INT DEFAULT 0,
+    status VARCHAR(20) NOT NULL
+);
 
--- -- Таблица OrderItems
--- CREATE TABLE delivery_tables_schema.OrderItems (
---     order_item_id SERIAL PRIMARY KEY,
---     order_id INT REFERENCES delivery_tables_schema.Orders(order_id) ON DELETE CASCADE,
---     product_id INT REFERENCES delivery_tables_schema.Products(product_id) ON DELETE CASCADE,
---     quantity INT NOT NULL CONSTRAINT positive_quantity CHECK (quantity > 0)
--- );
+-- Таблица OrderItems
+CREATE TABLE delivery_tables_schema.OrderItems (
+    order_item_id SERIAL PRIMARY KEY,
+    order_id INT REFERENCES delivery_tables_schema.Orders(order_id) ON DELETE CASCADE,
+    product_id INT REFERENCES delivery_tables_schema.Products(product_id) ON DELETE CASCADE,
+    quantity INT NOT NULL CONSTRAINT positive_quantity CHECK (quantity > 0)
+);
 
 -- Создание индексов
 CREATE INDEX lower_idx_product_name ON delivery_tables_schema.Products(lower(name));
