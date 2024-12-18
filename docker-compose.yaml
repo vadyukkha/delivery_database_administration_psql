@@ -12,7 +12,7 @@ services:
       # Скрипт для создания базы данных delivery
       - ./database/2_delivery.sql:/docker-entrypoint-initdb.d/2_delivery.sql
     ports:
-      - "5432:5432"
+      - "1234:1234"
   
   app:
     build:

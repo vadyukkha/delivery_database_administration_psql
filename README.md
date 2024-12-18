@@ -7,6 +7,8 @@
     ```
     DB_INIT_SCRIPT="database/delivery.sql"
     DB_NAME="delivery"
+    DB_HOST="db"
+    DB_PORT="5432"
     LOG_PATH="logging_data/delivery_connection.log"
     ADMIN_PASSWORD="chill_owner"
     ADMIN_USERNAME="chill_owner"
