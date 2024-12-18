@@ -52,6 +52,10 @@ class DatabaseManager:
     @logs
     def clear_table(self, table_name):
         """Очистка одной таблицы"""
+        if table_name not in ["products", "users", "orderitems", "orders"]:
+            logging.error(f"Error clearing table: table '{table_name}' not found")
+            return False
+
         query = text("CALL delivery_schema.clear_sertain_table(:table_name);")
         params = {"table_name": table_name.lower()}
         try:
@@ -80,6 +84,10 @@ class DatabaseManager:
     def add_data(self, table_name, data):
         """Добавление новых данных"""
         if not table_name or not data:
+            return False
+
+        if table_name not in ["products", "users", "orderitems", "orders"]:
+            logging.error(f"Error clearing table: table '{table_name}' not found")
             return False
 
         params = {}
@@ -137,8 +145,10 @@ class DatabaseManager:
     @logs
     def search_by_text_field(self, request_msg_desc):
         """Поиск по заранее выбранному (вами) текстовому не ключевому полю"""
-        query = text("SELECT * FROM delivery_schema.search_products_by_desc(:msg);")
-        params = {"msg": request_msg_desc}
+        query = text(
+            "SELECT * FROM delivery_schema.search_products_by_desc(:description);"
+        )
+        params = {"description": request_msg_desc}
 
         try:
             with self.engine.connect() as conn:
@@ -153,6 +163,14 @@ class DatabaseManager:
     def update_row(self, table_name, key, data):
         """Обновление кортежа"""
         if not table_name or not data or not key:
+            return False
+
+        if table_name not in ["products", "users", "orderitems", "orders"]:
+            logging.error(f"Error updating row: table '{table_name}' not found")
+            return False
+
+        if not isinstance(key, int):
+            logging.error(f"Error updating row: key '{key}' is not an integer")
             return False
 
         query = ""
@@ -218,8 +236,8 @@ class DatabaseManager:
     @logs
     def delete_by_text_field(self, request_msg_desc):
         """Удаление по заранее выбранному текстовому не ключевому полю"""
-        query = text("CALL delivery_schema.delete_products_by_desc(:msg);")
-        params = {"msg": request_msg_desc}
+        query = text("CALL delivery_schema.delete_products_by_desc(:description);")
+        params = {"description": request_msg_desc}
 
         try:
             with self.engine.connect() as conn:
@@ -233,6 +251,21 @@ class DatabaseManager:
     @logs
     def delete_specific_record(self, table_name, key):
         """Удаление конкретной записи, выбранной пользователем"""
+        if not table_name or not key:
+            return False
+
+        if table_name not in ["products", "users", "orderitems", "orders"]:
+            logging.error(
+                f"Error deleting specific record: table '{table_name}' not found"
+            )
+            return False
+
+        if not isinstance(key, int):
+            logging.error(
+                f"Error deleting specific record: key '{key}' is not an integer"
+            )
+            return False
+
         query = text("CALL delivery_schema.delete_specific_record(:table_name, :key);")
         params = {"table_name": table_name.lower(), "key": key}
         try:
@@ -266,6 +299,13 @@ class DatabaseManager:
 
     @logs
     def __safe_execute(self, conn, query, params):
+        for k, v in params.items():
+            if ";" in v or "--" in v:
+                logging.error("Invalid characters in input")
+                raise ValueError("Invalid characters in input")
+            if k != "description":
+                params[k] = v.strip()
+
         try:
             if params is None:
                 return conn.execute(query)
