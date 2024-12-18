@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:14
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      # Скрипт для создания пользователя chill_owner
+      - ./database/1_init.sql:/docker-entrypoint-initdb.d/1_init.sql
+      # Скрипт для создания базы данных delivery
+      - ./database/2_delivery.sql:/docker-entrypoint-initdb.d/2_delivery.sql
+    ports:
+      - "1234:1234"
+  
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_container
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://chill_owner:chill_owner@db:5432/delivery
+    ports:
+      - "8502:8502"
+    command: ["sh", "-c", "sleep 10 && poetry run streamlit run streamlit/app.py --server.port=8502 --server.address=0.0.0.0"]

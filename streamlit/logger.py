@@ -14,7 +14,7 @@ log_file = os.getenv("LOG_PATH", "logging_data/db_connection.log")
 logging.basicConfig(
     filename=log_file,
     filemode="w",
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
